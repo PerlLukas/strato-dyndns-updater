@@ -135,15 +135,15 @@ def update_strato_ddns(ipv4: str | None, ipv6: str | None):
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
             response_text = response.read().decode().strip()
-            logging.info("Strato DynDNS Antwort: %s", response_text)
-
             if response.status != 200:
                 logging.error("HTTP-Status ungleich 200: %s", response.status)
                 error_occurred = True
 
             lowered = response_text.lower()
 
-            if not lowered.startswith("good") and not lowered.startswith("nochg"):
+            if lowered.startswith("good") or lowered.startswith("nochg"):
+                logging.info("Strato DynDNS-Antwort: %s", response_text)
+            else:
                 error_occurred = True
                 logging.error("Fehlerhafte DynDNS-Antwort: %s", response_text)
 
