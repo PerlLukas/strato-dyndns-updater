@@ -6,6 +6,16 @@ Das Skript unterstützt IPv4 und IPv6, schreibt Logdateien in ein lokales `logs/
 
 Normale Läufe landen in einer Tagesdatei wie `26_03_18.log`. Wenn während eines Laufs ein Fehler auftritt oder Strato eine fehlerhafte Antwort wie `nohost` zurückgibt, wird die Datei als `26_03_18_error.log` geführt.
 
+## Hinweis / Disclaimer
+
+Dieses Projekt steht in keiner Verbindung zu Strato AG und wird von Strato weder unterstützt noch offiziell bereitgestellt.
+
+Die Nutzung erfolgt vollständig auf eigene Verantwortung. Für Fehlkonfigurationen, Ausfälle, falsche DNS-Einträge oder sonstige Schäden wird keine Haftung übernommen.
+
+Zum Ermitteln der öffentlichen IP-Adressen verwendet das Skript aktuell die externen Endpunkte `https://api.ipify.org` und `https://api6.ipify.org`. Dabei wird keine zusätzliche Verarbeitung oder Speicherung durch dieses Projekt vorgenommen. Trotzdem können die angesprochenen Dienste oder deren Infrastruktur- beziehungsweise Cloud-Anbieter Verbindungsdaten die IP-Adresse serverseitig protokollieren.
+
+Wenn du das nicht möchtest, kannst du in [main.py](/home/website/code/dynDNS/main.py) die Funktionen `get_public_ipv4()` und `get_public_ipv6()` auf eigene Endpunkte umstellen. Wichtig ist nur, dass der jeweilige Endpoint als Antwort ausschließlich die IP-Adresse als reinen Text zurückgibt.
+
 ## Funktionen
 
 - Abgleich der aktuellen öffentlichen IPv4- und IPv6-Adresse
