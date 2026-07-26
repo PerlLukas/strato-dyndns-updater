@@ -47,6 +47,7 @@ USERNAME = creds["USERNAME"]
 PASSWORD = creds["PASSWORD"]
 
 error_occurred = False
+dns_resolution_error = False
 log_file = None
 
 
@@ -99,20 +100,26 @@ def get_public_ipv6() -> str | None:
 
 
 def get_domain_ipv4(domain: str) -> str | None:
+    global dns_resolution_error
+
     try:
         return socket.gethostbyname(domain)
     except socket.gaierror as e:
         if e.errno == socket.EAI_NODATA:
             logging.info("Kein A-Record für %s vorhanden.", domain)
         else:
+            dns_resolution_error = True
             logging.warning("IPv4-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)
         return None
     except Exception as e:
+        dns_resolution_error = True
         logging.warning("IPv4-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)
         return None
 
 
 def get_domain_ipv6(domain: str) -> str | None:
+    global dns_resolution_error
+
     try:
         info = socket.getaddrinfo(domain, None, socket.AF_INET6)
         for entry in info:
@@ -124,9 +131,11 @@ def get_domain_ipv6(domain: str) -> str | None:
         if e.errno == socket.EAI_NODATA:
             logging.info("Kein AAAA-Record für %s vorhanden.", domain)
         else:
+            dns_resolution_error = True
             logging.warning("IPv6-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)
         return None
     except Exception as e:
+        dns_resolution_error = True
         logging.warning("IPv6-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)
         return None
 
@@ -223,9 +232,14 @@ def main():
     ipv4_differs = bool(ipv4 and dns_ipv4 and ipv4 != dns_ipv4)
     ipv6_differs = bool(ipv6 and dns_ipv6 and ipv6 != dns_ipv6)
 
-    if ipv4_differs or ipv6_differs:
+    if dns_resolution_error:
+        error_occurred = True
+        logging.error("DNS-Auflösung fehlgeschlagen. IP-Vergleich nicht möglich. Kein Update.")
+    elif ipv4_differs or ipv6_differs:
         logging.warning("IP-Abweichung erkannt. DynDNS-Update wird gestartet.")
         update_strato_ddns(ipv4, ipv6)
+    elif not dns_ipv4 and not dns_ipv6:
+        logging.info("Keine vorhandenen DNS-Einträge zum Vergleichen. Kein Update nötig.")
     else:
         logging.info("Vorhandene DNS-IP stimmt überein. Kein Update nötig.")
 
