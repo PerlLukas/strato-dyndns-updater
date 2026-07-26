@@ -101,6 +101,12 @@ def get_public_ipv6() -> str | None:
 def get_domain_ipv4(domain: str) -> str | None:
     try:
         return socket.gethostbyname(domain)
+    except socket.gaierror as e:
+        if e.errno == socket.EAI_NODATA:
+            logging.info("Kein A-Record für %s vorhanden.", domain)
+        else:
+            logging.warning("IPv4-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)
+        return None
     except Exception as e:
         logging.warning("IPv4-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)
         return None
@@ -113,6 +119,12 @@ def get_domain_ipv6(domain: str) -> str | None:
             sockaddr = entry[4]
             if sockaddr and len(sockaddr) > 0:
                 return sockaddr[0]
+        return None
+    except socket.gaierror as e:
+        if e.errno == socket.EAI_NODATA:
+            logging.info("Kein AAAA-Record für %s vorhanden.", domain)
+        else:
+            logging.warning("IPv6-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)
         return None
     except Exception as e:
         logging.warning("IPv6-DNS-Auflösung fehlgeschlagen für %s: %s", domain, e)

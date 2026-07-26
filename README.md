@@ -12,25 +12,45 @@ Dieses Projekt steht in keiner Verbindung zu Strato AG und wird von Strato weder
 
 Die Nutzung erfolgt vollständig auf eigene Verantwortung. Für Fehlkonfigurationen, Ausfälle, falsche DNS-Einträge oder sonstige Schäden wird keine Haftung übernommen.
 
-Zum Ermitteln der öffentlichen IP-Adressen verwendet das Skript aktuell die externen Endpunkte `https://api.ipify.org` und `https://api6.ipify.org`. Dabei wird keine zusätzliche Verarbeitung oder Speicherung durch dieses Projekt vorgenommen. Trotzdem können die angesprochenen Dienste oder deren Infrastruktur- beziehungsweise Cloud-Anbieter Verbindungsdaten die IP-Adresse serverseitig protokollieren.
+Zum Ermitteln der öffentlichen IP-Adressen verwendet das Skript externe Dienste. Zuerst werden `https://api.ipify.org` für IPv4 und `https://api6.ipify.org` für IPv6 abgefragt. Schlägt der jeweilige Abruf fehl oder liefert er keine gültige IP-Adresse der erwarteten Version, dienen `https://4.ident.me` beziehungsweise `https://6.ident.me` als Fallback. Nur wenn beide Dienste einer IP-Version scheitern, wird diese IP-Version als nicht verfügbar behandelt.
 
-Wenn du das nicht möchtest, kannst du in [main.py](/home/website/code/dynDNS/main.py) die Funktionen `get_public_ipv4()` und `get_public_ipv6()` auf eigene Endpunkte umstellen. Wichtig ist nur, dass der jeweilige Endpoint als Antwort ausschließlich die IP-Adresse als reinen Text zurückgibt.
+Dabei wird keine zusätzliche Verarbeitung oder Speicherung durch dieses Projekt vorgenommen. Trotzdem können die angesprochenen Dienste oder deren Infrastruktur- beziehungsweise Cloud-Anbieter Verbindungsdaten und die öffentliche IP-Adresse serverseitig protokollieren.
+
+Wenn du diese Dienste nicht verwenden möchtest, kannst du in [`main.py`](main.py) die Endpunkte in `get_public_ipv4()` und `get_public_ipv6()` austauschen. Der jeweilige Endpunkt muss ausschließlich die IP-Adresse als reinen Text zurückgeben.
 
 ## Funktionen
 
 - Abgleich der aktuellen öffentlichen IPv4- und IPv6-Adresse
+- Automatischer Fallback auf einen zweiten IP-Dienst
+- Validierung der Antworten als IPv4 beziehungsweise IPv6
 - Vergleich mit den aktuell für die Domain aufgelösten DNS-Einträgen
-- DynDNS-Update nur bei Abweichungen
+- DynDNS-Update nur bei Abweichung eines vorhandenen A- oder AAAA-Records
+- Fehlende A- oder AAAA-Records lösen allein kein Update aus
 - Protokollierung in Logdateien
 - Geeignet für den automatischen Betrieb mit `systemd`
+
+## Entscheidungslogik
+
+Das Skript vergleicht jede erfolgreich ermittelte öffentliche IP-Adresse mit dem entsprechenden vorhandenen DNS-Eintrag:
+
+| Situation | Verhalten |
+| --- | --- |
+| A-Record stimmt, AAAA-Record fehlt | Kein Update |
+| AAAA-Record stimmt, A-Record fehlt | Kein Update |
+| Vorhandener A- oder AAAA-Record weicht ab | DynDNS-Update |
+| Beide DNS-Einträge fehlen | Kein Update |
+| Primärer IP-Dienst fällt aus | Abfrage des Fallback-Dienstes |
+| Primärer Dienst und Fallback fallen aus | IP-Version wird als nicht verfügbar behandelt |
+
+Ein fehlender A- oder AAAA-Record wird als normale Information protokolliert. Temporäre DNS-Probleme und andere Fehler bei der Namensauflösung werden weiterhin als Warnung protokolliert.
 
 ## Projektstruktur
 
 ```text
 dynDNS/
-|- main.py
-|- logs/
-`- README.md
+├── logs/
+├── main.py
+└── README.md
 ```
 
 ## Voraussetzungen
@@ -50,7 +70,7 @@ systemctl --version
 
 ### 1. Domain im Skript anpassen
 
-In [`main.py`](/home/website/code/dynDNS/main.py) ist aktuell ein Platzhalter eingetragen:
+In [`main.py`](main.py) ist aktuell ein Platzhalter eingetragen:
 
 ```python
 DOMAIN = "example.com"
