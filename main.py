@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import base64
+import ipaddress
 import logging
 import os
 import socket
@@ -68,22 +69,33 @@ def setup_logger():
     )
 
 
-def get_ip(url: str) -> str | None:
-    try:
-        with urllib.request.urlopen(url, timeout=10) as response:
-            ip = response.read().decode().strip()
-            return ip if ip else None
-    except Exception as e:
-        logging.warning("IP-Abruf fehlgeschlagen für %s: %s", url, e)
-        return None
+def get_ip(urls: tuple[str, ...], expected_version: int) -> str | None:
+    for url in urls:
+        try:
+            with urllib.request.urlopen(url, timeout=10) as response:
+                ip = response.read().decode().strip()
+                if ipaddress.ip_address(ip).version != expected_version:
+                    raise ValueError(f"Antwort ist keine IPv{expected_version}-Adresse")
+                return ip
+        except Exception as e:
+            logging.warning("IPv%s-Abruf fehlgeschlagen für %s: %s", expected_version, url, e)
+
+    logging.error("Öffentliche IPv%s konnte über keinen Dienst ermittelt werden.", expected_version)
+    return None
 
 
 def get_public_ipv4() -> str | None:
-    return get_ip("https://api.ipify.org")
+    return get_ip(
+        ("https://api.ipify.org", "https://4.ident.me"),
+        expected_version=4
+    )
 
 
 def get_public_ipv6() -> str | None:
-    return get_ip("https://api6.ipify.org")
+    return get_ip(
+        ("https://api6.ipify.org", "https://6.ident.me"),
+        expected_version=6
+    )
 
 
 def get_domain_ipv4(domain: str) -> str | None:
@@ -196,14 +208,14 @@ def main():
     logging.info("Domain IPv4: %s", dns_ipv4 if dns_ipv4 else "nicht verfügbar")
     logging.info("Domain IPv6: %s", dns_ipv6 if dns_ipv6 else "nicht verfügbar")
 
-    ipv4_differs = ipv4 and (ipv4 != dns_ipv4)
-    ipv6_differs = ipv6 and (ipv6 != dns_ipv6)
+    ipv4_differs = bool(ipv4 and dns_ipv4 and ipv4 != dns_ipv4)
+    ipv6_differs = bool(ipv6 and dns_ipv6 and ipv6 != dns_ipv6)
 
     if ipv4_differs or ipv6_differs:
         logging.warning("IP-Abweichung erkannt. DynDNS-Update wird gestartet.")
         update_strato_ddns(ipv4, ipv6)
     else:
-        logging.info("IPv4/IPv6 identisch. Kein Update nötig.")
+        logging.info("Vorhandene DNS-IP stimmt überein. Kein Update nötig.")
 
 
 if __name__ == "__main__":
